@@ -21,10 +21,36 @@ export function getListings(filters = {}, signal) {
   return request(`/api/listings?${params}`, { signal });
 }
 
-export function uploadPhoto(file) {
-  const data = new FormData();
-  data.append("image", file);
-  return request("/api/uploads", { method: "POST", body: data });
+export async function uploadPhoto(file) {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error("Missing Cloudinary configuration");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", "lasu-lost-and-found");
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error?.message || "Failed to upload photo to Cloudinary",
+    );
+  }
+
+  return { photo_url: data.secure_url };
 }
 
 export function createListing(listing) {
